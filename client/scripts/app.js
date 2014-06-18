@@ -1,22 +1,34 @@
+var sanitizeString = function (s) {
+  if (s){
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;').replace(/%/g, '&per;');
+  }
+}
+
 var app = {
   init: function(){
     this.server = "https://api.parse.com/1/classes/chatterbox";
     this.username = prompt(('What is your name?') || 'anonymous');
     this.rooom = 'lobby';
+    this.friendNames = [];
     app.updateMessages();
-    var handle = this.handleSubmit;
-    $("#send .submit").on('submit', function(){
-      handle();
+    
+    $("#send .submit").on('click', function(e){
+      e.preventDefault();
+      app.handleSubmit();
+    });
+    $("#clearFriends").on('click', function(e){
+      e.preventDefault();
+      $('#friendsList').empty();
     });
   },
   send: function(message){
     $.ajax({
-      url: this.server,
+      url: app.server,
       type: "POST",
       data: JSON.stringify(message),
       contentType: 'application/json',
       success: function(data){
-        console.log("success");
+        app.addMessage(message);
       },
       error: function(data){
         console.log("not success");
@@ -25,7 +37,8 @@ var app = {
   },
   updateMessages: function(){
     $.ajax({
-      url: this.server,
+      url: app.server,
+      data: { order: '-createdAt'},
       type: "GET",
       contentType: 'application/json',
       success: function(data){
@@ -40,45 +53,45 @@ var app = {
         console.log("failed retrieving messages");
       }
     });
+    setTimeout(app.updateMessages, 1000);
   },
-  
-
-  
-  
   
   clearMessages: function(){
     $("#chats").empty();
   },
 
   addMessage: function(message){
-    // To do clean up this function
-    var messageText = $('<li><span class="username">'+message.username+'</span>: <span>'+message.text+'</span></li>');
-   
-    // var myUsername = $("<span>" + message.username + "</span>");
-    // myUsername.addClass(".username");
-
-    // var justText = $("<span>" + message.text + "</span>")
-    // // Message text has to be list item
-    // var messageText = myUsername.concat(justText);
-
-    $("#chats").append(messageText);
-    // Add event listener that calls addFriend when user clicks on username
-    messageText.find(".username").click(function(){
-       app.addFriend(this.innerHTML);
+    // Making every message before we append it to the DOM the id of the messages username
+    // Check if user is in friends list before apending, if it is in friends list apply bold style
+    var messageUsername = $("<span>", {class: 'username ' + sanitizeString(message.username)}).text(sanitizeString(message.username));
+    messageUsername.on('click', function(){
+      var friendName = this.innerHTML;
+      this.friendNames.push(friendName);
+      app.addFriend(friendName);
+      $('.'+friendName).css('font-weight', 'bold');  //Apply css style to message from friends
     });
+    var messageText = $("<span>", {class: 'usertext'}).text(sanitizeString(message.text));    
+    var messageHTML = $("<li>").append(messageUsername, ': ', messageText);
+    $("#chats").append(messageHTML);
+
+    if ($.inArray(sanitizeString(message.username), this.friendNames)){
+      $('.'+sanitizeString(message.username)).css('font-weight', 'bold');  //Apply css style to message from friends
+    }
+
   },
 
   addRoom: function(room){
-    $('#roomSelect').append("<li>"+room+"</li>")
+    $('#roomSelect').append("<li>"+room+"</li>");
   },
 
   addFriend: function(username){
     $('#friendsList').append("<li>"+username+"</li>");
   },
 
+
   handleSubmit: function(){
-   var messageText = $('#message').text();
-   $("#message").empty();
+   var messageText = $('#message').val();
+   $("#message").val('');
    var message = {
     'username': this.username,
     'text': messageText,
@@ -88,5 +101,4 @@ var app = {
   },
 };
 
-app.init();
 
